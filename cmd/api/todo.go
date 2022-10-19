@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,7 +15,19 @@ import (
 
 // createTodoInfoHandler for the POST /v1/todoInfo" endpoints
 func (app *application) createTodoInfoHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(w, "create a todo list")
+	// Our target decode destination
+	var input struct {
+		Name string `json: "name"`
+		Task string `json: "task"`
+	}
+	// Initialize a new json.Decoder instance
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+	//Display the request
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 // showTodoInfoHandler for the "GET /v1/todoInfo/" endpoint
@@ -35,7 +48,7 @@ func (app *application) showTodoInfoHandler(w http.ResponseWriter, r *http.Reque
 		Name:      "Hilary To DO list",
 		Task:      "bake cake for birthday",
 	}
-	err = app.writeJSON(w, http.StatusOK, todo, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"todo": todo}, nil)
 	if err != nil {
 		app.logger.Println(err)
 		http.Error(w, "The server encounteed a problem and could not process your reuest", http.StatusInternalServerError)
