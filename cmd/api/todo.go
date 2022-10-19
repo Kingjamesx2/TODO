@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"todo.jamesfaber.net/internal/data"
 )
 
 // createTodoInfoHandler for the POST /v1/todoInfo" endpoints
@@ -25,7 +27,18 @@ func (app *application) showTodoInfoHandler(w http.ResponseWriter, r *http.Reque
 		http.NotFound(w, r)
 		return
 	}
+	//create a new instance of the todo struct containing the ID we extracted from our URL and some sample data
 	//display the id
-	fmt.Fprintf(w, "show the details for school %d\n", id)
+	todo := data.Todo{
+		ID:        id,
+		CreatedAt: time.Now(),
+		Name:      "Hilary To DO list",
+		Task:      "bake cake for birthday",
+	}
+	err = app.writeJSON(w, http.StatusOK, todo, nil)
+	if err != nil {
+		app.logger.Println(err)
+		http.Error(w, "The server encounteed a problem and could not process your reuest", http.StatusInternalServerError)
+	}
 
 }
