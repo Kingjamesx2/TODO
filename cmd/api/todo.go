@@ -10,6 +10,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"todo.jamesfaber.net/internal/data"
+	"todo.jamesfaber.net/internal/validator"
 )
 
 // createTodoInfoHandler for the POST /v1/todoInfo" endpoints
@@ -25,6 +26,21 @@ func (app *application) createTodoInfoHandler(w http.ResponseWriter, r *http.Req
 		app.badRequestResponse(w, r, err)
 		return
 	}
+	//Copy the values from the input struct to a new Todo struct
+	todo := &data.Todo{
+		Name: input.Name,
+		Task: input.Task,
+	}
+
+	//Initialize a new Validator instance
+	v := validator.New()
+
+	//check the map to determine if there were any validation errors
+	if data.ValidateTodo(v, todo); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
 	//Display the request
 	fmt.Fprintf(w, "%+v\n", input)
 }
