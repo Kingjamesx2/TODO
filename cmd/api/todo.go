@@ -3,10 +3,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"todo.jamesfaber.net/internal/data"
@@ -41,8 +41,23 @@ func (app *application) createTodoInfoHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	//Display the request
-	fmt.Fprintf(w, "%+v\n", input)
+	//Create a todo
+	err = app.models.Todo.Insert(todo)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+	//Create a location header for the newly created resource/todo
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/todoInfo/%d", todo.ID))
+
+	//Write the JSON response with 201 - Created status code with the body
+	//being the todo data and the header being the headers map
+	err = app.writeJSON(w, http.StatusCreated, envelope{"todo": todo}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
 }
 
 // showTodoInfoHandler for the "GET /v1/todoInfo/" endpoint
@@ -55,18 +70,22 @@ func (app *application) showTodoInfoHandler(w http.ResponseWriter, r *http.Reque
 		http.NotFound(w, r)
 		return
 	}
-	//create a new instance of the todo struct containing the ID we extracted from our URL and some sample data
-	//display the id
-	todo := data.Todo{
-		ID:        id,
-		CreatedAt: time.Now(),
-		Name:      "Hilary To DO list",
-		Task:      "bake cake for birthday",
+	//fetch the specific Task
+	todo, err := app.models.Todo.Get(id)
+	// Handle errors
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
+	//write the data returned by Get()
 	err = app.writeJSON(w, http.StatusOK, envelope{"todo": todo}, nil)
 	if err != nil {
-		app.logger.Println(err)
-		http.Error(w, "The server encounteed a problem and could not process your reuest", http.StatusInternalServerError)
+		app.serverErrorResponse(w, r, err)
 	}
 
 }
