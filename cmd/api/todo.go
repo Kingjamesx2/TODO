@@ -116,8 +116,8 @@ func (app *application) updateTodoInfoHandler(w http.ResponseWriter, r *http.Req
 	// default value of nil
 	// If a field remains nil then we know that the client did not update it
 	var input struct {
-		Name string `json:"name"`
-		Task string `json:"task"`
+		Name *string `json:"name"`
+		Task *string `json:"task"`
 	}
 
 	// Initialize a new json.Decoder instance
@@ -127,11 +127,15 @@ func (app *application) updateTodoInfoHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	//Copy / Update thefields/values in the Todo variable using the fields in the input struct
-	todo.Name = input.Name
-	todo.Task = input.Task
+	// Check for updates
+	if input.Name != nil {
+		todo.Name = *input.Name
+	}
+	if input.Task != nil {
+		todo.Task = *input.Task
+	}
 
-	// Perform validation on the updated School. If validation fails, then
+	// Perform validation on the updated Todo. If validation fails, then
 	// we send a 422 - Unprocessable Entity respose to the client
 	// Initialize a new Validator instance
 	v := validator.New()
