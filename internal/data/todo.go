@@ -101,7 +101,16 @@ func (m TodoModel) Update(todo *Todo) error {
 	}
 
 	// Check for edit conflicts
-	return m.DB.QueryRow(query, args...).Scan(&todo.Version)
+	err := m.DB.QueryRow(query, args...).Scan(&todo.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 // Delete() removes a specific Task
