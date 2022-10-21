@@ -153,3 +153,30 @@ func (app *application) updateTodoInfoHandler(w http.ResponseWriter, r *http.Req
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) deleteTodoInfoHandler(w http.ResponseWriter, r *http.Request) {
+	// Get the id for the todo that needs deleting
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+	// Delete the Todo from the database. Send a 404 Not Found status code to the
+	// client if there is no matching record
+	err = app.models.Todo.Delete(id)
+	// Handle errors
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+	// Return 200 Status OK to the client with a success message
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "Todo Task successfully deleted"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

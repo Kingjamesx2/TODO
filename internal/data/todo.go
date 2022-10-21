@@ -59,7 +59,7 @@ func (m TodoModel) Get(id int64) (*Todo, error) {
 		FROM todo
 		WHERE id = $1
 	`
-	// Declare a School variable to hold the returned data
+	// Declare a todo variable to hold the returned data
 	var todo Todo
 
 	// Execute the query using QueryRow()
@@ -88,7 +88,7 @@ func (m TodoModel) Get(id int64) (*Todo, error) {
 func (m TodoModel) Update(todo *Todo) error {
 	// Create a query
 	query := `
-		UPDATE schools
+		UPDATE todo
 		SET name = $1, task = $2, version = version + 1
 		WHERE id = $3
 		AND version = $4
@@ -106,5 +106,29 @@ func (m TodoModel) Update(todo *Todo) error {
 
 // Delete() removes a specific Task
 func (m TodoModel) Delete(id int64) error {
+	// Ensure that there is a valid id
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+	// Create the delete query
+	query := `
+		DELETE FROM todo
+		WHERE id = $1
+	`
+	// Execute the query
+	result, err := m.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	// Check how many rows were affected by the delete operation. We
+	// call the RowsAffected() method on the result variable
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	// Check if no rows were affected
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
 	return nil
 }
