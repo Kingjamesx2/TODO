@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"todo.jamesfaber.net/internal/validator"
@@ -161,4 +162,58 @@ func (m TodoModel) Delete(id int64) error {
 		return ErrRecordNotFound
 	}
 	return nil
+}
+
+// the GetAll() method returns a list of all the Todo sorted by id
+func (m TodoModel) GetAll(name string, status string, filters Filters) ([]*Todo, Metadata, error) {
+	//construct the query to return all todo
+	//make query into formated string to be able to sort by field and asc or dec dynaimicaly
+	query := fmt.Sprintf(`
+		SELECT COUNT(*) OVER(),id, created_at, name, task, version
+		FROM todo
+		WHERE (to_tsvector('simple',name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		AND (to_tsvector('simple',task) @@ plainto_tsquery('simple', $2) OR $2 = '')
+		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortOrder())
+
+	//create a 3 second timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	//execute the query
+	args := []interface{}{name, status, filters.limit(), filters.offset()}
+	rows, err := m.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+	//close the result set
+	defer rows.Close()
+	//store total records
+	totalRecords := 0
+	//intialize an empty slice to hold the Todo data
+	todo := []*Todo{}
+	//iterate over the rows in the result set
+	for rows.Next() {
+		var todo Todo
+		//scan the values from the row into the Todo struct
+		err := rows.Scan(
+			// &totalRecords,
+			&todo.ID,
+			&todo.CreatedAt,
+			&todo.Name,
+			&todo.Task,
+			&todo.Version,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+		//add the todo to our slice
+		todo = append(todo, &todo)
+	}
+	//check if any errors occured while proccessing the result set
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	//return the result set. the slice of todo
+	return todo, metadata, nil
 }
