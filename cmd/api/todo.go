@@ -1,4 +1,4 @@
-//FIlename: cmd/pi/todo.go
+//FIlename: cmd/api/todo.go
 
 package main
 
@@ -187,5 +187,51 @@ func (app *application) deleteTodoInfoHandler(w http.ResponseWriter, r *http.Req
 	err = app.writeJSON(w, http.StatusOK, envelope{"message": "Todo Task successfully deleted"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// The listTodoInfosHandler() allows the client to see a listing of Todo task based on a set of criteria
+func (app *application) listTodoInfoHandler(w http.ResponseWriter, r *http.Request) {
+	//Create an input struct to hold our query parameters
+	var input struct {
+		Name string
+		Task string
+		data.Filters
+	}
+
+	//Initialize a validator
+	v := validator.New()
+	//Get the URL values map
+	qs := r.URL.Query()
+	//Use the helper methods to extract the values
+	input.Name = app.readString(qs, "name", "")
+	input.Task = app.readString(qs, "Task", "")
+	//Get the page information
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	//Get the sort information
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	//Specify the allowed sort values
+
+	//CHECK THIS
+	input.Filters.SortList = []string{"id", "name", "task", "-id", "-name", "-task"}
+
+	//Checking for validation errors
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	//Get a listing of all Todo Info
+	todo, metadata, err := app.models.Todo.GetAll(input.Name, input.Task, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	//Send JSON responce containing all the todo info
+	err = app.writeJSON(w, http.StatusOK, envelope{"todo": todo, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
 	}
 }
