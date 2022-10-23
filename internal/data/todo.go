@@ -13,10 +13,10 @@ import (
 )
 
 type Todo struct {
-	ID        int64     `json: "id"`
-	CreatedAt time.Time `json: "created_at"`
-	Name      string    `json: "name"`
-	Task      string    `json: "task"`
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"-"`
+	Name      string    `json:"name"`
+	Task      string    `json:"task"`
 	Version   int32     `json:"version"`
 }
 
@@ -34,47 +34,39 @@ type TodoModel struct {
 	DB *sql.DB
 }
 
-// insert() allows us to crete a new todo task
+// Insert() allows us to create a new todo task
 func (m TodoModel) Insert(todo *Todo) error {
 	query := `
-		INSERT INTO (name, task)
-		VALUE ($1, $2)
-		RETURNING id, created_at, version
+	INSERT INTO todo (name, task)
+	VALUES ($1, $2)
+	RETURNING id, created_at, version
 	`
-	// Create a context
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	// Cleanup to prevent memory leaks
 	defer cancel()
 
-	//colllect the data fields into a slice
-	args := []interface{}{
-		todo.Name,
-		todo.Task,
-	}
+	// Collect the data fields into a slice
+	args := []interface{}{todo.Name, todo.Task}
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&todo.ID, &todo.CreatedAt, &todo.Version)
 }
 
-// Get() allows us to retrieve a specific task
+// GET() allows us to retrieve a specific todo item
 func (m TodoModel) Get(id int64) (*Todo, error) {
-	// Ensure that there is a valid id
 	if id < 1 {
 		return nil, ErrRecordNotFound
 	}
-	// Create the query
+	// Create query
 	query := `
-		SELECT  id, created_at, name, task, version
+		SELECT id, created_at, name, task, version
 		FROM todo
 		WHERE id = $1
 	`
-	// Declare a todo variable to hold the returned data
+	// Declare a Todo variable to hold the return data
 	var todo Todo
-
-	// Create a context
+	// Execute Query using the QueryRow
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	// Cleanup to prevent memory leaks
 	defer cancel()
-
-	// Execute the query using QueryRow()
 	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&todo.ID,
 		&todo.CreatedAt,
@@ -96,17 +88,16 @@ func (m TodoModel) Get(id int64) (*Todo, error) {
 	return &todo, nil
 }
 
-// Update() allows us to edi/alter a specific tool
+// Update() allows us to edit/alter a todo item in the list
 func (m TodoModel) Update(todo *Todo) error {
-	// Create a query
 	query := `
-		UPDATE todo
-		SET name = $1, task = $2, version = version + 1
+		UPDATE todo 
+		set name = $1, task = $2,  
+		version = version + 1
 		WHERE id = $3
 		AND version = $4
 		RETURNING version
 	`
-	// Create a context
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	// Cleanup to prevent memory leaks
 	defer cancel()
@@ -114,9 +105,9 @@ func (m TodoModel) Update(todo *Todo) error {
 	args := []interface{}{
 		todo.Name,
 		todo.Task,
+		todo.ID,
 		todo.Version,
 	}
-
 	// Check for edit conflicts
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&todo.Version)
 	if err != nil {
@@ -165,7 +156,7 @@ func (m TodoModel) Delete(id int64) error {
 }
 
 // the GetAll() method returns a list of all the Todo sorted by id
-func (m TodoModel) GetAll(name string, status string, filters Filters) ([]*Todo, Metadata, error) {
+func (m TodoModel) GetAll(name string, task string, filters Filters) ([]*Todo, Metadata, error) {
 	//construct the query to return all todo
 	//make query into formated string to be able to sort by field and asc or dec dynaimicaly
 	query := fmt.Sprintf(`
@@ -180,7 +171,7 @@ func (m TodoModel) GetAll(name string, status string, filters Filters) ([]*Todo,
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	//execute the query
-	args := []interface{}{name, status, filters.limit(), filters.offset()}
+	args := []interface{}{name, task, filters.limit(), filters.offset()}
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, Metadata{}, err
@@ -190,13 +181,13 @@ func (m TodoModel) GetAll(name string, status string, filters Filters) ([]*Todo,
 	//store total records
 	totalRecords := 0
 	//intialize an empty slice to hold the Todo data
-	todo := []*Todo{}
+	todos := []*Todo{}
 	//iterate over the rows in the result set
 	for rows.Next() {
 		var todo Todo
 		//scan the values from the row into the Todo struct
 		err := rows.Scan(
-			// &totalRecords,
+			&totalRecords,
 			&todo.ID,
 			&todo.CreatedAt,
 			&todo.Name,
@@ -207,13 +198,13 @@ func (m TodoModel) GetAll(name string, status string, filters Filters) ([]*Todo,
 			return nil, Metadata{}, err
 		}
 		//add the todo to our slice
-		todo = append(todo, &todo)
+		todos = append(todos, &todo)
 	}
 	//check if any errors occured while proccessing the result set
 	if err = rows.Err(); err != nil {
 		return nil, Metadata{}, err
 	}
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
-	//return the result set. the slice of todo
-	return todo, metadata, nil
+	metadata := calculateMetaData(totalRecords, filters.Page, filters.PageSize)
+	//return the result set. the slice of todos
+	return todos, metadata, nil
 }

@@ -17,9 +17,9 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodGet, "/v1/todoInfo/", app.listTodoInfoHandler)
 
 	router.HandlerFunc(http.MethodPost, "/v1/todoInfo", app.createTodoInfoHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/todoInfo/id", app.showTodoInfoHandler)
-	router.HandlerFunc(http.MethodPatch, "/v1/todoInfo/id", app.updateTodoInfoHandler)
-	router.HandlerFunc(http.MethodDelete, "/v1/todoInfo/id", app.deleteTodoInfoHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/todoInfo/:id", app.showTodoInfoHandler)
+	router.HandlerFunc(http.MethodPut, "/v1/todoInfo/:id", app.updateTodoInfoHandler)
+	router.HandlerFunc(http.MethodDelete, "/v1/todoInfo/:id", app.deleteTodoInfoHandler)
 
 	return router
 }
