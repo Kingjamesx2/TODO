@@ -107,7 +107,7 @@ func (app *application) updateTodoInfoHandler(w http.ResponseWriter, r *http.Req
 	// if a field remains nil then we know that the client did not update it
 	var input struct {
 		Name *string `json:"name"`
-		Task *string `json:"task"`
+		Task *string `json:"Task"`
 	}
 
 	//Initalize a new json.Decoder instance
@@ -149,6 +149,7 @@ func (app *application) updateTodoInfoHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+
 }
 
 // The deleteTodoInfoHandler() allows the user to delete a todo info from the databse by using the ID
